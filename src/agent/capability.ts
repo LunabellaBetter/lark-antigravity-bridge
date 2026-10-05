@@ -76,3 +76,15 @@ export function antigravityCapability(
     },
   };
 }
+
+export function capabilityForProfile(profile: ProfileConfig): AgentCapability {
+  if (profile.agentKind === 'codex') {
+    return codexCapability(profile);
+  }
+
+  if (profile.agentKind === 'antigravity') {
+    return antigravityCapability(profile);
+  }
+
+  return claudeCapability(profile);
+}

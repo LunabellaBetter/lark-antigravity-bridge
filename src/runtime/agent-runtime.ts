@@ -1,3 +1,4 @@
+import { AntigravityAdapter } from '../agent/antigravity/adapter';
 import { ClaudeAdapter } from '../agent/claude/adapter';
 import { CodexAdapter } from '../agent/codex/adapter';
 import { AgentPreflightError, type AgentAvailability } from '../agent/preflight';
@@ -49,6 +50,14 @@ export function createRuntimeAgent(
       larkChannel,
     });
   }
+
+  if (profileConfig.agentKind === 'antigravity') {
+    return new AntigravityAdapter({
+      binary: process.env.LARK_CHANNEL_ANTIGRAVITY_BIN ?? 'agy',
+      larkChannel,
+    });
+  }
+
   return new ClaudeAdapter({ larkChannel });
 }
 
@@ -56,11 +65,19 @@ export async function checkRuntimeAgentAvailability(agent: AgentAdapter): Promis
   if (agent.checkAvailability) return agent.checkAvailability();
   const ok = await agent.isAvailable();
   if (ok) return { ok: true };
+  const agentId =
+    agent.id === 'codex'
+      ? ('codex' as const)
+      : agent.id === 'antigravity'
+        ? ('antigravity' as const)
+        : ('claude' as const);
+  const command =
+    agentId === 'codex' ? 'codex' : agentId === 'antigravity' ? 'agy' : 'claude';
   const diagnostic = {
     code: 'agent-binary-not-found' as const,
-    agentId: agent.id === 'codex' ? ('codex' as const) : ('claude' as const),
+    agentId,
     agentName: agent.displayName,
-    command: agent.id === 'codex' ? 'codex' : 'claude',
+    command,
   };
   return { ok: false, diagnostic, error: new AgentPreflightError(diagnostic) };
 }
