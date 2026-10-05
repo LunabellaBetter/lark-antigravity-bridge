@@ -1180,7 +1180,10 @@ async function runAgentBatch(deps: RunBatchDeps): Promise<void> {
         log.fail('stream', err, { mode: replyMode, step: 'progress-stream' });
       }
       await recallIfEmptyStreamedReply(channel, progress, filterForPrefs(latestState), scope);
-      if (controls.profileConfig.agentKind === 'codex') {
+      if (
+        controls.profileConfig.agentKind === 'codex' ||
+        controls.profileConfig.agentKind === 'antigravity'
+      ) {
         await sendFinalReply({
           channel,
           chatId,
@@ -1243,7 +1246,10 @@ async function runAgentBatch(deps: RunBatchDeps): Promise<void> {
         log.fail('stream', err, { mode: replyMode, step: 'progress-stream' });
       }
       await recallIfEmptyStreamedReply(channel, progress, filterForPrefs(latestState), scope);
-      if (controls.profileConfig.agentKind === 'codex') {
+      if (
+        controls.profileConfig.agentKind === 'codex' ||
+        controls.profileConfig.agentKind === 'antigravity'
+      ) {
         await sendFinalReply({
           channel,
           chatId,
@@ -1271,7 +1277,8 @@ async function runAgentBatch(deps: RunBatchDeps): Promise<void> {
         chatId,
         scope,
         state:
-          controls.profileConfig.agentKind === 'codex'
+          controls.profileConfig.agentKind === 'codex' ||
+          controls.profileConfig.agentKind === 'antigravity'
             ? finalAnswerOnlyState(filterForPrefs(finalState))
             : filterForPrefs(finalState),
         replyMode,

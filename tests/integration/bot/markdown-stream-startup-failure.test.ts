@@ -230,6 +230,25 @@ describe('markdown stream startup failures', () => {
     expect(lastMarkdown(h.channel)).toContain('FINAL_ONLY_SENTINEL');
   });
 
+  it('sends Antigravity final_text in text reply mode', async () => {
+    const h = await createHarness({
+      agentKind: 'antigravity',
+      messageReply: 'text',
+      events: [
+        { type: 'final_text', content: 'ANTIGRAVITY_FINAL_SENTINEL' },
+        { type: 'done', terminationReason: 'normal' },
+      ],
+    });
+    await startTestBridge(h);
+
+    await h.channel.handlers.message?.(message('om_antigravity_final', 'run'));
+    await waitFor(() => h.channel.sent.length === 1);
+
+    expect(h.channel.sent).toHaveLength(1);
+    expect(lastMarkdown(h.channel)).toContain('ANTIGRAVITY_FINAL_SENTINEL');
+    expect(h.channel.sent[0]?.options).toMatchObject({ replyTo: 'om_antigravity_final' });
+  });
+
   it('does not repeat streamed text as the final reply when Codex held nothing back', async () => {
     // Codex only reserves its *last* message as `final_text`; an abnormal turn
     // end (turn.failed, or the process dying before turn.completed) flushes it
@@ -436,8 +455,8 @@ async function createHarness(options: {
   /** One run's events, or one array per run. */
   events?: FakeAgentEvents;
   messageReply?: 'card' | 'markdown' | 'text';
-  /** Codex holds its answer back for a dedicated final reply; Claude streams it. */
-  agentKind?: 'claude' | 'codex';
+  /** Codex and Antigravity hold their answer for a dedicated final reply; Claude streams it. */
+  agentKind?: 'claude' | 'codex' | 'antigravity';
 } = {}): Promise<{
   tmp: TmpProfile;
   channel: FakeLarkChannel;
