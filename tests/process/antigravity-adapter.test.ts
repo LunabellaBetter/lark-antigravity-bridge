@@ -1,4 +1,4 @@
-import { chmod, mkdtemp, readFile, realpath, rm, writeFile } from 'node:fs/promises';
+import { chmod, mkdir, mkdtemp, readFile, realpath, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { afterEach, describe, expect, it } from 'vitest';
@@ -37,6 +37,10 @@ describe('AntigravityAdapter process contract', () => {
     });
 
     expect(await collect(run.events)).toEqual([
+      {
+        type: 'system',
+        sessionId: 'conv-test',
+      },
       {
         type: 'final_text',
         content: 'AGY_OK\n',
@@ -98,12 +102,99 @@ describe('AntigravityAdapter process contract', () => {
     }
   });
 
+  it('emits Antigravity conversation_id as system sessionId', async () => {
+    const fake = await createFakeAgy();
+    cleanup.push(fake.dir);
+
+    const run = new AntigravityAdapter({
+      binary: fake.path,
+    }).run({
+      runId: 'run-conversation-id',
+      prompt: 'hello',
+      cwd: await realpath(fake.dir),
+    });
+
+    const events = await collect(run.events);
+
+    expect(events).toContainEqual({
+      type: 'system',
+      sessionId: 'conv-test',
+    });
+  });
+
+  it('preserves Antigravity conversation_id before permission denial', async () => {
+    const fake = await createFakeAgyPermissionDenied();
+    cleanup.push(fake.dir);
+
+    const run = new AntigravityAdapter({
+      binary: fake.path,
+      remoteControlLogDir: fake.dir,
+    }).run({
+      runId: 'run-permission-session',
+      prompt: 'find a file',
+      cwd: await realpath(fake.dir),
+    });
+
+    const events = await collect(run.events);
+
+    expect(events).toContainEqual({
+      type: 'system',
+      sessionId: 'conv-permission-test',
+    });
+
+    expect(events).toContainEqual({
+      type: 'error',
+      message:
+        'Antigravity 权限不足：需要 command 权限；当前为 headless 模式，无法弹窗确认。请打开 Antigravity Remote Control 查看对应会话；如需在 headless 模式自动执行，请为该命令配置 permissions.allow 后重试：https://antigravity.google.com',
+      terminationReason: 'failed',
+    });
+  });
+
+  it('includes the direct Remote Control conversation URL on permission denial', async () => {
+    const fake = await createFakeAgyPermissionDenied();
+    cleanup.push(fake.dir);
+
+    const logDir = join(fake.dir, 'remote-control-log');
+    await mkdir(logDir, { recursive: true });
+
+    await writeFile(
+      join(logDir, 'cli-current.log'),
+      [
+        '[remote-control-11111111-2222-4333-8444-555555555555-v2] Starting V2 remote control connection',
+        '[remote-control-11111111-2222-4333-8444-555555555555-v2] Connection status: Connected',
+      ].join('\\n'),
+    );
+
+    const run = new AntigravityAdapter({
+      binary: fake.path,
+      remoteControlLogDir: logDir,
+    }).run({
+      runId: 'run-permission-direct-url',
+      prompt: 'find a file',
+      cwd: await realpath(fake.dir),
+    });
+
+    expect(await collect(run.events)).toEqual([
+      {
+        type: 'system',
+        sessionId: 'conv-permission-test',
+      },
+      {
+        type: 'error',
+        message:
+          'Antigravity 权限不足：需要 command 权限；当前为 headless 模式，无法弹窗确认。请在 Antigravity Remote Control 中审批当前会话：https://antigravity.google.com/r/11111111-2222-4333-8444-555555555555-v2?p=c%2Fconv-permission-test',
+        terminationReason: 'failed',
+      },
+    ]);
+  });
+
   it('surfaces headless permission denial instead of completing normally', async () => {
     const fake = await createFakeAgyPermissionDenied();
     cleanup.push(fake.dir);
 
     const run = new AntigravityAdapter({
       binary: fake.path,
+      remoteControlLogDir: fake.dir,
     }).run({
       runId: 'run-permission-denied',
       prompt: 'find a file',
@@ -112,9 +203,13 @@ describe('AntigravityAdapter process contract', () => {
 
     expect(await collect(run.events)).toEqual([
       {
+        type: 'system',
+        sessionId: 'conv-permission-test',
+      },
+      {
         type: 'error',
         message:
-          'Antigravity 权限不足：需要 command 权限；当前为 headless 模式，无法弹窗确认。请打开 Antigravity Remote Control，在「Una Mac」中完成审批后重试：https://antigravity.google.com',
+          'Antigravity 权限不足：需要 command 权限；当前为 headless 模式，无法弹窗确认。请打开 Antigravity Remote Control 查看对应会话；如需在 headless 模式自动执行，请为该命令配置 permissions.allow 后重试：https://antigravity.google.com',
         terminationReason: 'failed',
       },
     ]);

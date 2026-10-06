@@ -20,6 +20,10 @@ describe('Antigravity JSON translator', () => {
       }),
     ).toEqual([
       {
+        type: 'system',
+        sessionId: 'conv-123',
+      },
+      {
         type: 'final_text',
         content: 'JSON_OK\n',
       },

@@ -1,4 +1,6 @@
 import type { Readable } from 'node:stream';
+import { homedir } from 'node:os';
+import { join } from 'node:path';
 import { log } from '../../core/logger';
 import {
   mergeProcessEnv,
@@ -17,11 +19,13 @@ import type {
   AgentRunOptions,
 } from '../types';
 import { translateAntigravityResult } from './json';
+import { findRemoteControlConversationUrl } from './remote-control';
 
 export interface AntigravityAdapterOptions {
   binary: string;
   stopGraceMs?: number;
   larkChannel?: LarkChannelEnvContext;
+  remoteControlLogDir?: string;
 }
 
 type AntigravityChild = SpawnedProcessByStdio<null, Readable, Readable>;
@@ -33,12 +37,16 @@ export class AntigravityAdapter implements AgentAdapter {
   private readonly binary: string;
   private readonly defaultStopGraceMs: number;
   private readonly larkChannel: LarkChannelEnvContext | undefined;
+  private readonly remoteControlLogDir: string | undefined;
   private botIdentity: AgentBotIdentity | undefined;
 
   constructor(opts: AntigravityAdapterOptions) {
     this.binary = opts.binary;
     this.defaultStopGraceMs = opts.stopGraceMs ?? 5000;
     this.larkChannel = opts.larkChannel;
+    this.remoteControlLogDir =
+      opts.remoteControlLogDir ??
+      join(homedir(), '.gemini', 'antigravity-cli', 'log');
   }
 
   setBotIdentity(identity: AgentBotIdentity): void {
@@ -138,6 +146,7 @@ export class AntigravityAdapter implements AgentAdapter {
         stderrChunks,
         () => runtimeError,
         () => interrupted,
+        this.remoteControlLogDir,
       ),
 
       async stop() {
@@ -202,6 +211,7 @@ async function* createEventStream(
   stderrChunks: Buffer[],
   getRuntimeError: () => Error | null,
   wasInterrupted: () => boolean,
+  remoteControlLogDir?: string,
 ): AsyncGenerator<AgentEvent> {
   if (!child.pid) {
     const err = getRuntimeError();
@@ -243,10 +253,51 @@ async function* createEventStream(
 
   if (permissionMatch) {
     const permission = permissionMatch[1] ?? 'unknown';
+    const stdout = Buffer.concat(stdoutChunks).toString('utf8').trim();
+
+    let conversationId: string | undefined;
+
+    if (stdout) {
+      try {
+        const parsed = JSON.parse(stdout) as { conversation_id?: unknown };
+
+        if (
+          typeof parsed.conversation_id === 'string' &&
+          parsed.conversation_id.length > 0
+        ) {
+          conversationId = parsed.conversation_id;
+
+          yield {
+            type: 'system',
+            sessionId: conversationId,
+          };
+        }
+      } catch {
+        // Permission denial remains the primary error even if stdout is malformed.
+      }
+    }
+
+    let remoteControlUrl: string | undefined;
+
+    if (conversationId && remoteControlLogDir) {
+      try {
+        remoteControlUrl = await findRemoteControlConversationUrl(
+          conversationId,
+          remoteControlLogDir,
+        );
+      } catch (err) {
+        log.warn('agent', 'remote-control-url', {
+          agent: 'antigravity',
+          error: err instanceof Error ? err.message : String(err),
+        });
+      }
+    }
 
     yield {
       type: 'error',
-      message: `Antigravity 权限不足：需要 ${permission} 权限；当前为 headless 模式，无法弹窗确认。请打开 Antigravity Remote Control，在「Una Mac」中完成审批后重试：https://antigravity.google.com`,
+      message: remoteControlUrl
+        ? `Antigravity 权限不足：需要 ${permission} 权限；当前为 headless 模式，无法弹窗确认。请在 Antigravity Remote Control 中审批当前会话：${remoteControlUrl}`
+        : `Antigravity 权限不足：需要 ${permission} 权限；当前为 headless 模式，无法弹窗确认。请打开 Antigravity Remote Control 查看对应会话；如需在 headless 模式自动执行，请为该命令配置 permissions.allow 后重试：https://antigravity.google.com`,
       terminationReason: 'failed',
     };
     return;

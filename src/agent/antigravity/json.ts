@@ -42,6 +42,13 @@ export function translateAntigravityResult(input: unknown): AgentEvent[] {
 
   const events: AgentEvent[] = [];
 
+  if (typeof result.conversation_id === 'string' && result.conversation_id.length > 0) {
+    events.push({
+      type: 'system',
+      sessionId: result.conversation_id,
+    });
+  }
+
   if (typeof result.response === 'string' && result.response.length > 0) {
     events.push({
       type: 'final_text',

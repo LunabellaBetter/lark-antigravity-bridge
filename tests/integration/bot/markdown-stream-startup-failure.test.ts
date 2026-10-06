@@ -236,9 +236,13 @@ describe('markdown stream startup failures', () => {
       messageReply: 'text',
       events: [
         {
+          type: 'system',
+          sessionId: 'conv-permission-test',
+        },
+        {
           type: 'error',
           message:
-            'Antigravity 权限不足：需要 command 权限；当前为 headless 模式，无法弹窗确认。请打开 Antigravity Remote Control，在「Una Mac」中完成审批后重试：https://antigravity.google.com',
+            'Antigravity 权限不足：需要 command 权限；当前为 headless 模式，无法弹窗确认。请打开 Antigravity Remote Control 查看对应会话；如需在 headless 模式自动执行，请为该命令配置 permissions.allow 后重试：https://antigravity.google.com',
           terminationReason: 'failed',
         },
       ],
@@ -254,6 +258,8 @@ describe('markdown stream startup failures', () => {
     expect(h.channel.sent[0]?.options).toMatchObject({
       replyTo: 'om_antigravity_permission',
     });
+
+    expect(h.sessions.getRaw('oc_dm')?.sessionId).toBe('conv-permission-test');
   });
 
   it('sends Antigravity final_text in text reply mode', async () => {
