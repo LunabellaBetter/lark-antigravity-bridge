@@ -230,6 +230,32 @@ describe('markdown stream startup failures', () => {
     expect(lastMarkdown(h.channel)).toContain('FINAL_ONLY_SENTINEL');
   });
 
+  it('sends Antigravity permission denial to Feishu instead of skipping empty reply', async () => {
+    const h = await createHarness({
+      agentKind: 'antigravity',
+      messageReply: 'text',
+      events: [
+        {
+          type: 'error',
+          message:
+            'Antigravity 权限不足：需要 command 权限；当前为 headless 模式，无法弹窗确认。请在本机授权后重试。',
+          terminationReason: 'failed',
+        },
+      ],
+    });
+    await startTestBridge(h);
+
+    await h.channel.handlers.message?.(message('om_antigravity_permission', 'run'));
+    await waitFor(() => h.channel.sent.length === 1);
+
+    expect(h.channel.sent).toHaveLength(1);
+    expect(lastMarkdown(h.channel)).toContain('Antigravity 权限不足');
+    expect(lastMarkdown(h.channel)).toContain('command');
+    expect(h.channel.sent[0]?.options).toMatchObject({
+      replyTo: 'om_antigravity_permission',
+    });
+  });
+
   it('sends Antigravity final_text in text reply mode', async () => {
     const h = await createHarness({
       agentKind: 'antigravity',

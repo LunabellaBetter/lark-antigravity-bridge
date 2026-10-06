@@ -97,6 +97,28 @@ describe('AntigravityAdapter process contract', () => {
       else process.env.HTTPS_PROXY = oldHttpsProxy;
     }
   });
+
+  it('surfaces headless permission denial instead of completing normally', async () => {
+    const fake = await createFakeAgyPermissionDenied();
+    cleanup.push(fake.dir);
+
+    const run = new AntigravityAdapter({
+      binary: fake.path,
+    }).run({
+      runId: 'run-permission-denied',
+      prompt: 'find a file',
+      cwd: await realpath(fake.dir),
+    });
+
+    expect(await collect(run.events)).toEqual([
+      {
+        type: 'error',
+        message:
+          'Antigravity 权限不足：需要 command 权限；当前为 headless 模式，无法弹窗确认。请在本机授权后重试。',
+        terminationReason: 'failed',
+      },
+    ]);
+  });
 });
 
 async function collect(events: AsyncIterable<AgentEvent>): Promise<AgentEvent[]> {
@@ -136,6 +158,44 @@ async function createFakeAgy(): Promise<FakeBinary> {
       '    cache_read_tokens: 5,',
       '    total_tokens: 120,',
       '  },',
+      '}));',
+    ].join('\n'),
+    'utf8',
+  );
+
+  await chmod(path, 0o755);
+
+  return {
+    path,
+    dir,
+    recordPath,
+  };
+}
+
+async function createFakeAgyPermissionDenied(): Promise<FakeBinary> {
+  const dir = await mkdtemp(join(tmpdir(), 'antigravity-permission-test-'));
+  const path = join(dir, 'fake-agy-permission.mjs');
+  const recordPath = join(dir, 'argv.json');
+
+  await writeFile(
+    path,
+    [
+      '#!/usr/bin/env node',
+      'import { writeFileSync } from "node:fs";',
+      `writeFileSync(${JSON.stringify(recordPath)}, JSON.stringify({`,
+      '  argv: process.argv.slice(2),',
+      '  cwd: process.cwd(),',
+      '  env: {},',
+      '}));',
+      'process.stderr.write(' +
+        JSON.stringify(
+          'jetski: no output produced — a tool required the "command" permission that headless mode cannot prompt for, so it was auto-denied.\n',
+        ) +
+        ');',
+      'console.log(JSON.stringify({',
+      '  conversation_id: "conv-permission-test",',
+      '  status: "SUCCESS",',
+      '  response: "",',
       '}));',
     ].join('\n'),
     'utf8',

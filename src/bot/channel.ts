@@ -1166,7 +1166,10 @@ async function runAgentBatch(deps: RunBatchDeps): Promise<void> {
           renderDone,
           producerStarted: () => producerStarted,
           fallback: async (state) => {
-            if (controls.profileConfig.agentKind === 'codex') return;
+            if (
+              controls.profileConfig.agentKind === 'codex' ||
+              controls.profileConfig.agentKind === 'antigravity'
+            ) return;
             if (renderText(filterForPrefs(state)).trim() === '') return;
             await channel.send(
               chatId,
@@ -1234,7 +1237,10 @@ async function runAgentBatch(deps: RunBatchDeps): Promise<void> {
           renderDone,
           producerStarted: () => producerStarted,
           fallback: async (state) => {
-            if (controls.profileConfig.agentKind === 'codex') return;
+            if (
+              controls.profileConfig.agentKind === 'codex' ||
+              controls.profileConfig.agentKind === 'antigravity'
+            ) return;
             const body = renderText(filterForPrefs(state));
             if (body.trim()) {
               await channel.send(chatId, { markdown: body }, sendOpts);

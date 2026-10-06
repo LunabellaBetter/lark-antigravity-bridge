@@ -235,8 +235,24 @@ async function* createEventStream(
     return;
   }
 
+  const stderr = Buffer.concat(stderrChunks).toString('utf8').trim();
+
+  const permissionMatch = stderr.match(
+    /tool required the "([^"]+)" permission that headless mode cannot prompt for/i,
+  );
+
+  if (permissionMatch) {
+    const permission = permissionMatch[1] ?? 'unknown';
+
+    yield {
+      type: 'error',
+      message: `Antigravity 权限不足：需要 ${permission} 权限；当前为 headless 模式，无法弹窗确认。请在本机授权后重试。`,
+      terminationReason: 'failed',
+    };
+    return;
+  }
+
   if (exitCode !== 0 && exitCode !== null) {
-    const stderr = Buffer.concat(stderrChunks).toString('utf8').trim();
     const detail = stderr ? `: ${stderr.slice(0, 500)}` : '';
 
     yield {
