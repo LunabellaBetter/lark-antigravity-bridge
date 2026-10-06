@@ -238,7 +238,7 @@ describe('markdown stream startup failures', () => {
         {
           type: 'error',
           message:
-            'Antigravity 权限不足：需要 command 权限；当前为 headless 模式，无法弹窗确认。请在本机授权后重试。',
+            'Antigravity 权限不足：需要 command 权限；当前为 headless 模式，无法弹窗确认。请打开 Antigravity Remote Control，在「Una Mac」中完成审批后重试：https://antigravity.google.com',
           terminationReason: 'failed',
         },
       ],
