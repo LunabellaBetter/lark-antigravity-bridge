@@ -29,6 +29,8 @@ export interface PlistInputs {
   runArgs: string[];
   /** Root directory for config/profile state. */
   channelHome: string;
+  /** Extra environment variables captured locally when installing the service. */
+  serviceEnv?: Record<string, string>;
 }
 
 export function buildPlist(inputs: PlistInputs): string {
@@ -39,6 +41,13 @@ export function buildPlist(inputs: PlistInputs): string {
       .replace(/>/g, '&gt;')
       .replace(/"/g, '&quot;');
   const argStrings = inputs.runArgs.map((a) => `        <string>${escape(a)}</string>`).join('\n');
+  const serviceEnvStrings = Object.entries(inputs.serviceEnv ?? {})
+    .map(
+      ([key, value]) =>
+        `        <key>${escape(key)}</key>\n        <string>${escape(value)}</string>`,
+    )
+    .join('\n');
+  const extraEnv = serviceEnvStrings ? `\n${serviceEnvStrings}` : '';
   return `<?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0">
@@ -64,7 +73,7 @@ ${argStrings}
         <key>PATH</key>
         <string>${escape(inputs.envPath)}</string>
         <key>LARK_CHANNEL_HOME</key>
-        <string>${escape(inputs.channelHome)}</string>
+        <string>${escape(inputs.channelHome)}</string>${extraEnv}
     </dict>
 </dict>
 </plist>
@@ -83,6 +92,11 @@ export async function writePlist(profile: string, runArgs: string[] = ['run']): 
     profile,
     runArgs,
     channelHome: paths.rootDir,
+    serviceEnv: Object.fromEntries(
+      ['LARK_CHANNEL_ANTIGRAVITY_BIN', 'HTTP_PROXY', 'HTTPS_PROXY']
+        .map((key) => [key, process.env[key]])
+        .filter((entry): entry is [string, string] => Boolean(entry[1])),
+    ),
   });
   const plistPath = launchAgentPlistPath(profile);
   await mkdir(dirname(plistPath), { recursive: true });

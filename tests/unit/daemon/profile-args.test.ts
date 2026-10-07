@@ -52,6 +52,31 @@ describe('profile-scoped daemon paths and arguments', () => {
     expect(buildLauncherCmd(inputs)).toContain('set "LARK_CHANNEL_HOME=/tmp/lark-channel-home"');
   });
 
+  it('writes explicit service environment variables into launchd plist safely', () => {
+    const inputs = {
+      nodePath: '/usr/local/bin/node',
+      bridgeEntryPath: '/repo/bin/lark-channel-bridge.mjs',
+      envPath: '/usr/local/bin:/usr/bin',
+      profile: 'una-gemini',
+      runArgs: ['run', '--profile', 'una-gemini'],
+      channelHome: '/tmp/lark-channel-home',
+      serviceEnv: {
+        LARK_CHANNEL_ANTIGRAVITY_BIN: '/Users/test/.local/bin/agy',
+        HTTP_PROXY: 'http://127.0.0.1:12345?a=1&b=2',
+        HTTPS_PROXY: 'http://127.0.0.1:12345/<secure>',
+      },
+    };
+
+    const plist = buildPlist(inputs);
+
+    expect(plist).toContain('<key>LARK_CHANNEL_ANTIGRAVITY_BIN</key>');
+    expect(plist).toContain('<string>/Users/test/.local/bin/agy</string>');
+    expect(plist).toContain('<key>HTTP_PROXY</key>');
+    expect(plist).toContain('http://127.0.0.1:12345?a=1&amp;b=2');
+    expect(plist).toContain('<key>HTTPS_PROXY</key>');
+    expect(plist).toContain('http://127.0.0.1:12345/&lt;secure&gt;');
+  });
+
   it('supervisor service runs `run --web-ui` with no --profile', () => {
     const inputs = {
       nodePath: '/usr/local/bin/node',

@@ -43,9 +43,22 @@ const CODEX_MODELS: ModelOption[] = [
   { value: 'o3', label: 'o3' },
 ];
 
+/**
+ * Antigravity CLI models.
+ *
+ * V1 intentionally exposes only the CLI/account default. We have verified
+ * headless execution, but have not yet validated a stable model-selection
+ * contract for `agy`, so the bridge must not invent or forward model ids.
+ */
+const ANTIGRAVITY_MODELS: ModelOption[] = [
+  { value: DEFAULT_MODEL, label: '跟随 Antigravity 默认' },
+];
+
 /** The model picker options for a profile's agent kind. */
 export function supportedModels(agentKind: AgentKind): ModelOption[] {
-  return agentKind === 'codex' ? CODEX_MODELS : CLAUDE_MODELS;
+  if (agentKind === 'codex') return CODEX_MODELS;
+  if (agentKind === 'antigravity') return ANTIGRAVITY_MODELS;
+  return CLAUDE_MODELS;
 }
 
 /** True when the selection means "use the agent default" (no `--model`). */

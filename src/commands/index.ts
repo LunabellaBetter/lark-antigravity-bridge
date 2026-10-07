@@ -3,7 +3,7 @@ import { readFile } from 'node:fs/promises';
 import { homedir } from 'node:os';
 import { dirname, isAbsolute } from 'node:path';
 import type { LarkChannel, NormalizedMessage } from '@larksuite/channel';
-import { claudeCapability, codexCapability } from '../agent/capability';
+import { capabilityForProfile } from '../agent/capability';
 import { DEFAULT_MODEL, normalizeModelSelection, supportedModels } from '../agent/models';
 import type { AgentAdapter } from '../agent/types';
 import type { ActiveRuns } from '../bot/active-runs';
@@ -653,6 +653,11 @@ async function applyResume(sessionId: string, ctx: CommandContext): Promise<void
     return;
   }
 
+  if (ctx.controls.profileConfig.agentKind === 'antigravity') {
+    await reply(ctx, 'Antigravity V1 当前使用无状态运行，暂不支持 /resume。');
+    return;
+  }
+
   if (ctx.controls.profileConfig.agentKind === 'codex') {
     await reply(ctx, '当前上下文没有可恢复的 Codex thread，请先在当前工作区完成一次运行。');
     return;
@@ -672,6 +677,10 @@ function issueResumeCandidate(
   identity: SessionCatalogIdentity,
   target: { sessionId: string } | { threadId: string },
 ): string {
+  if (identity.agentId === 'antigravity') {
+    throw new Error('Antigravity V1 does not support resume candidates');
+  }
+
   pruneResumeCandidates();
   let nonce = randomUUID().slice(0, 12);
   while (resumeCandidates.has(nonce)) nonce = randomUUID().slice(0, 12);
@@ -1127,10 +1136,7 @@ async function handleDoctor(args: string, ctx: CommandContext): Promise<void> {
   }
   doctorLastByOperator.set(rateKey, now);
 
-  const capability =
-    ctx.controls.profileConfig.agentKind === 'codex'
-      ? codexCapability(ctx.controls.profileConfig)
-      : claudeCapability(ctx.controls.profileConfig);
+  const capability = capabilityForProfile(ctx.controls.profileConfig);
   const policy = evaluateRunPolicy({
     scope: {
       source: 'im',

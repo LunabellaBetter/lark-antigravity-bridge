@@ -230,6 +230,57 @@ describe('markdown stream startup failures', () => {
     expect(lastMarkdown(h.channel)).toContain('FINAL_ONLY_SENTINEL');
   });
 
+  it('sends Antigravity permission denial to Feishu instead of skipping empty reply', async () => {
+    const h = await createHarness({
+      agentKind: 'antigravity',
+      messageReply: 'text',
+      events: [
+        {
+          type: 'system',
+          sessionId: 'conv-permission-test',
+        },
+        {
+          type: 'error',
+          message:
+            'Antigravity 权限不足：需要 command 权限；当前为 headless 模式，无法弹窗确认。请打开 Antigravity Remote Control 查看对应会话；如需在 headless 模式自动执行，请为该命令配置 permissions.allow 后重试：https://antigravity.google.com',
+          terminationReason: 'failed',
+        },
+      ],
+    });
+    await startTestBridge(h);
+
+    await h.channel.handlers.message?.(message('om_antigravity_permission', 'run'));
+    await waitFor(() => h.channel.sent.length === 1);
+
+    expect(h.channel.sent).toHaveLength(1);
+    expect(lastMarkdown(h.channel)).toContain('Antigravity 权限不足');
+    expect(lastMarkdown(h.channel)).toContain('command');
+    expect(h.channel.sent[0]?.options).toMatchObject({
+      replyTo: 'om_antigravity_permission',
+    });
+
+    expect(h.sessions.getRaw('oc_dm')?.sessionId).toBe('conv-permission-test');
+  });
+
+  it('sends Antigravity final_text in text reply mode', async () => {
+    const h = await createHarness({
+      agentKind: 'antigravity',
+      messageReply: 'text',
+      events: [
+        { type: 'final_text', content: 'ANTIGRAVITY_FINAL_SENTINEL' },
+        { type: 'done', terminationReason: 'normal' },
+      ],
+    });
+    await startTestBridge(h);
+
+    await h.channel.handlers.message?.(message('om_antigravity_final', 'run'));
+    await waitFor(() => h.channel.sent.length === 1);
+
+    expect(h.channel.sent).toHaveLength(1);
+    expect(lastMarkdown(h.channel)).toContain('ANTIGRAVITY_FINAL_SENTINEL');
+    expect(h.channel.sent[0]?.options).toMatchObject({ replyTo: 'om_antigravity_final' });
+  });
+
   it('does not repeat streamed text as the final reply when Codex held nothing back', async () => {
     // Codex only reserves its *last* message as `final_text`; an abnormal turn
     // end (turn.failed, or the process dying before turn.completed) flushes it
@@ -436,8 +487,8 @@ async function createHarness(options: {
   /** One run's events, or one array per run. */
   events?: FakeAgentEvents;
   messageReply?: 'card' | 'markdown' | 'text';
-  /** Codex holds its answer back for a dedicated final reply; Claude streams it. */
-  agentKind?: 'claude' | 'codex';
+  /** Codex and Antigravity hold their answer for a dedicated final reply; Claude streams it. */
+  agentKind?: 'claude' | 'codex' | 'antigravity';
 } = {}): Promise<{
   tmp: TmpProfile;
   channel: FakeLarkChannel;

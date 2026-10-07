@@ -141,6 +141,44 @@ describe('profile runtime resolver', () => {
     expect(secret).toBe('manual-secret');
   });
 
+  it('bootstraps an explicit Antigravity profile', async () => {
+    const root = await tmpRoot();
+    const workspace = join(root, 'workspace');
+    await mkdir(workspace, { recursive: true });
+
+    const runtime = await resolveProfileRuntime({
+      config: join(root, 'config.json'),
+      profile: 'una-gemini',
+      agent: 'antigravity',
+      workspace,
+      allowBootstrap: true,
+      appId: 'cli_antigravity',
+      appSecret: 'manual-secret',
+      tenant: 'feishu',
+    } as Parameters<typeof resolveProfileRuntime>[0] & {
+      appId: string;
+      appSecret: string;
+      tenant: 'feishu';
+    });
+
+    const saved = JSON.parse(
+      await readFile(join(root, 'config.json'), 'utf8'),
+    ) as {
+      activeProfile: string;
+      profiles: Record<string, {
+        agentKind: string;
+        codex?: unknown;
+      }>;
+    };
+
+    expect(runtime.profile).toBe('una-gemini');
+    expect(runtime.profileConfig.agentKind).toBe('antigravity');
+    expect(runtime.profileConfig.codex).toBeUndefined();
+    expect(saved.activeProfile).toBe('una-gemini');
+    expect(saved.profiles['una-gemini']?.agentKind).toBe('antigravity');
+    expect(saved.profiles['una-gemini']).not.toHaveProperty('codex');
+  });
+
   it('rejects existing app bootstrap without writing config when credentials are invalid', async () => {
     const root = await tmpRoot();
     const workspace = join(root, 'workspace');
@@ -262,7 +300,7 @@ describe('profile runtime resolver', () => {
       expect(message).toContain(claude);
       expect(message).toContain('codex');
       expect(message).toContain(codex);
-      expect(message).toContain('--agent <claude|codex>');
+      expect(message).toContain('--agent <claude|codex|antigravity>');
     } finally {
       process.env.PATH = oldPath;
       if (oldClaude === undefined) {

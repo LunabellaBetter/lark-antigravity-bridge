@@ -1,0 +1,30 @@
+{
+  "permissions": {
+    "allow": [
+      "command(pwd)",
+      "command(ls)",
+      "command(ls -la)",
+      "command(find . -maxdepth 2 -type f -print)",
+      "command(git status)",
+      "command(git status --short)",
+      "command(git branch --show-current)",
+      "command(git diff --stat)",
+      "command(git diff --name-only)",
+      "command(git log -n 10 --oneline)",
+      "command(node --version)",
+      "command(npm --version)",
+      "command(pnpm --version)",
+      "command(python3 --version)",
+      "command(pnpm typecheck)",
+      "command(pnpm build)",
+      "command(pnpm vitest run)",
+      "command(npm run build)",
+      "command(npm run verify)",
+      "command(npx vite build)",
+      "command(npx playwright test)"
+    ]
+  },
+  "trustedWorkspaces": [
+    "/Users/yourname/path/to/your-project"
+  ]
+}

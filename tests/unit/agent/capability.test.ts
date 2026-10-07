@@ -1,6 +1,11 @@
 import { describe, expect, it } from 'vitest';
 import { BRIDGE_SYSTEM_PROMPT } from '../../../src/agent/bridge-system-prompt';
-import { claudeCapability, codexCapability } from '../../../src/agent/capability';
+import {
+  antigravityCapability,
+  capabilityForProfile,
+  claudeCapability,
+  codexCapability,
+} from '../../../src/agent/capability';
 import { createDefaultProfileConfig } from '../../../src/config/profile-schema';
 
 describe('agent capability contract', () => {
@@ -49,6 +54,84 @@ describe('agent capability contract', () => {
         maxAccess: 'workspace',
       },
     });
+  });
+
+  it('defines Antigravity capability as stateless in V1', () => {
+    const profile = createDefaultProfileConfig({
+      agentKind: 'antigravity',
+      accounts: {
+        app: {
+          id: 'cli_test',
+          secret: '${APP_SECRET}',
+          tenant: 'feishu',
+        },
+      },
+      permissions: {
+        defaultAccess: 'workspace',
+        maxAccess: 'workspace',
+      },
+    });
+
+    expect(antigravityCapability(profile)).toMatchObject({
+      agentId: 'antigravity',
+      sessionKind: 'stateless',
+      promptInjection: 'stdin-prefix',
+      supportsNativeHistory: false,
+      systemPrompt: BRIDGE_SYSTEM_PROMPT,
+      callback: {
+        marker: '__bridge_cb',
+        legacyMarkers: [],
+      },
+      permissions: {
+        maxAccess: 'workspace',
+      },
+    });
+  });
+
+  it('resolves the capability from profile agent kind', () => {
+    const base = {
+      accounts: {
+        app: {
+          id: 'cli_test',
+          secret: '${APP_SECRET}',
+          tenant: 'feishu' as const,
+        },
+      },
+      permissions: {
+        defaultAccess: 'workspace' as const,
+        maxAccess: 'workspace' as const,
+      },
+    };
+
+    expect(
+      capabilityForProfile(
+        createDefaultProfileConfig({
+          ...base,
+          agentKind: 'claude',
+        }),
+      ).agentId,
+    ).toBe('claude');
+
+    expect(
+      capabilityForProfile(
+        createDefaultProfileConfig({
+          ...base,
+          agentKind: 'codex',
+          codex: {
+            binaryPath: '/usr/local/bin/codex',
+          },
+        }),
+      ).agentId,
+    ).toBe('codex');
+
+    expect(
+      capabilityForProfile(
+        createDefaultProfileConfig({
+          ...base,
+          agentKind: 'antigravity',
+        }),
+      ).agentId,
+    ).toBe('antigravity');
   });
 
   it('uses Codex profile max access as the static capability ceiling', () => {
