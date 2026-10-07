@@ -4,6 +4,10 @@
 
 这个 fork 保留 Claude Code / Codex CLI 的主要能力，同时补充 Antigravity 的会话追踪、headless 权限处理、Remote Control 对话直达链接，以及更适合手机远程使用的工作流。
 
+> **用手机通过飞书 / Lark，直接调用运行在自己电脑上的本地 AI Agent。**
+>
+> 这个 fork 增加了 Google Antigravity CLI 支持，包括 conversation 追踪、headless 权限处理，以及直达对应 Antigravity conversation 的 Remote Control 链接。
+
 [English README](./README.md)
 
 ## 主要能力
