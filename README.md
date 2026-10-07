@@ -4,6 +4,10 @@ A Feishu / Lark bridge for local AI coding agents, with added support for **Goog
 
 This fork keeps the existing Claude Code / Codex workflow and adds Antigravity-specific support for mobile use, conversation tracking, headless permission handling, and Remote Control deep links.
 
+> **Use your phone to run local AI agents on your computer through Feishu / Lark.**
+>
+> This fork adds Google Antigravity CLI support with conversation tracking, headless permission handling, and direct Remote Control links to the exact Antigravity conversation.
+
 [中文 README](./README.zh.md)
 
 ## Highlights
